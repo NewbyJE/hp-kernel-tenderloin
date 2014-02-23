@@ -535,8 +535,12 @@ next_buffer:
 urbs:
 	tty_kref_put(tty);
 
-	while (!list_empty(&acm->spare_read_bufs)) {
+	while (1) {
 		spin_lock_irqsave(&acm->read_lock, flags);
+		if (list_empty(&acm->spare_read_bufs)) {
+			spin_unlock_irqrestore(&acm->read_lock, flags);
+			break;
+		}
 		if (list_empty(&acm->spare_read_urbs)) {
 			acm->processing = 0;
 			spin_unlock_irqrestore(&acm->read_lock, flags);
@@ -545,11 +549,11 @@ urbs:
 		rcv = list_entry(acm->spare_read_urbs.next,
 				 struct acm_ru, list);
 		list_del(&rcv->list);
-		spin_unlock_irqrestore(&acm->read_lock, flags);
 
 		buf = list_entry(acm->spare_read_bufs.next,
 				 struct acm_rb, list);
 		list_del(&buf->list);
+		spin_unlock_irqrestore(&acm->read_lock, flags);
 
 		rcv->buffer = buf;
 
@@ -872,7 +876,7 @@ static int acm_tty_break_ctl(struct tty_struct *tty, int state)
 	return retval;
 }
 
-static int acm_tty_tiocmget(struct tty_struct *tty)
+static int acm_tty_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct acm *acm = tty->driver_data;
 
@@ -887,7 +891,7 @@ static int acm_tty_tiocmget(struct tty_struct *tty)
 	       TIOCM_CTS;
 }
 
-static int acm_tty_tiocmset(struct tty_struct *tty,
+static int acm_tty_tiocmset(struct tty_struct *tty, struct file *file,
 			    unsigned int set, unsigned int clear)
 {
 	struct acm *acm = tty->driver_data;
@@ -908,9 +912,8 @@ static int acm_tty_tiocmset(struct tty_struct *tty,
 		return 0;
 	return acm_set_control(acm, acm->ctrlout = newctrl);
 }
-
-static int acm_tty_ioctl(struct tty_struct *tty,
-					unsigned int cmd, unsigned long arg)
+static int acm_tty_ioctl(struct tty_struct *tty, struct file * file,
+			 unsigned int cmd, unsigned long arg)
 {
 	struct acm *acm = tty->driver_data;
 
@@ -1711,7 +1714,7 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
     /* MBM */
-	{ USB_DEVICE(0x1519, 0x0020),
+	{ USB_DEVICE(0x1519, 0x0020), /* IMC_MAIN - XMM6260, XMM6262 */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 	/* Nokia S60 phones expose two ACM channels. The first is

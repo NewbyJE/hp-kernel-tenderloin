@@ -49,6 +49,9 @@
 
 #define DRIVER_VERSION		"22-Aug-2005-mbm"
 
+#ifndef PMSG_IS_AUTO
+#define PMSG_IS_AUTO(msg)       (((msg).event & PM_EVENT_AUTO) != 0)
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -1507,7 +1510,7 @@ int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 	if (!dev->suspend_count++) {
 		spin_lock_irq(&dev->txq.lock);
 		/* don't autosuspend while transmitting */
-		if (dev->txq.qlen && (message.event & PM_EVENT_AUTO)) {
+		if (dev->txq.qlen && PMSG_IS_AUTO(message)) {
 			spin_unlock_irq(&dev->txq.lock);
 			dev->suspend_count--;
 			netif_dbg(dev, link, dev->net, "%s return EBUSY, suspend_count=%d\n", __func__, dev->suspend_count);

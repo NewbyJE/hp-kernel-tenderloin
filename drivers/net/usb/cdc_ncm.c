@@ -132,7 +132,7 @@ struct cdc_ncm_ctx {
 	u16 tx_seq;
 	u16 rx_seq;
 	u16 connected;
-    u16 packet_cnt;
+	u16 packet_cnt;
 };
 
 static void cdc_ncm_txpath_bh(unsigned long param);
